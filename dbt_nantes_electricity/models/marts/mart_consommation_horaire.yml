@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: mart_consommation_horaire
+    description: >
+      Table finale agrégeant la consommation électrique horaire (en MWh), les données météo
+      (température réelle et normales de saison), les indicateurs d'intensité carbone RTE et
+      le calendrier des jours fériés à la maille horaire pour la métropole de Nantes.
+
+    columns:
+      - name: timestamp
+        description: Clé primaire de la table (Horodatage de l'enregistrement).
+        tests:
+          - unique
+          - not_null
+
+      - name: annee
+        description: Année civile de l'enregistrement.
+
+      - name: mois
+        description: Numéro du mois de l'enregistrement (6 à 9 pour la période estivale).
+
+      - name: heure
+        description: Heure légale de l'enregistrement (0 à 23).
+
+      - name: nom_jour_semaine
+        description: Libellé du jour en français (Lundi, Mardi...).
+        tests:
+          - accepted_values:
+              arguments: # Syntaxe moderne exigée par dbt v1.11+
+                values: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+      - name: type_jour
+        description: Indicateur pour séparer la semaine du week-end.
+        tests:
+          - accepted_values:
+              arguments: # Syntaxe moderne exigée par dbt v1.11+
+                values: ['Semaine', 'Week-end']
+
+      - name: est_ferie
+        description: Indicateur booléen (True/False) précisant si le jour est férié en France.
+        tests:
+          - not_null
+
+      - name: libelle_jour_special
+        description: Nom officiel du jour férié (ex:'Fête Nationale') ou 'Jour Ouvré' par défaut.
+        tests:
+          - not_null
+
+      - name: consommation_mwh
+        description: Consommation électrique totale mesurée en Mégawattheures (MWh) pour la métropole.
+        tests:
+          - not_null
+
+      - name: temperature_celsius
+        description: Température réelle observée à la station de Nantes.
+
+      - name: temperature_normale_saison_celsius
+        description: Température normale théorique calculée sur la moyenne historique du mois et de l'heure.
+
+      - name: ecart_a_la_normale_celsius
+        description: Écart thermique (Température réelle - Normale de saison). Une valeur positive en été indique une anomalie chaude (potentiel impact clim).
+
+
+      - name: taux_co2_g_kwh
+        description: >
+          Estimation de l'intensité carbone locale de l'électricité en gCO2/kWh,
+          calculée selon la méthode de l'ADEME (400g/kWh pour la production thermique locale).
+
+      - name: part_enr_pourcentage
+        description: Part en pourcentage des énergies renouvelables régionales injectées (éolien, solaire, hydro, bioénergies) par rapport à la consommation totale.

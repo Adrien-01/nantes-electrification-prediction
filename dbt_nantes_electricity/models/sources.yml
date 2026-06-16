@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw_seeds
+    description: "Données brutes injectées via dbt seeds pour le projet Nantes"
+    tables:
+      - name: stg_nantes_meteo_horaire
+        description: "Données météo horaires issues de l'API Open-Meteo"
+      - name: stg_nantes_consommation_horaire
+        description: "Données de consommation électrique horaire de la métropole"

@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: stg_meteo_horaire
+    description: "Données horaires nettoyées de la météo de Nantes (Juin à Septembre)."
+    columns:
+      - name: enregistrement_timestamp
+        description: "Clé primaire temporelle (date et heure de la mesure)."
+        tests:
+          - not_null
+          - unique
+
+      - name: temperature_celsius
+        description: "Température enregistrée en degrés Celsius."
+        tests:
+          - not_null
+
+      - name: mois
+        tests:
+          - accepted_values:
+              values: [6, 7, 8, 9]
+
+  - name: stg_conso_horaire
+    description: "Données consommation nettoyées."
+    columns:
+      - name: enregistrement_timestamp
+        description: "Clé primaire temporelle (date et heure de la mesure)."
+        tests:
+          - not_null
+          - unique
+
+      - name: MWh
+        description: "Le MWh (Mégawattheure)"
+        tests:
+          - not_null
+
+  - name: stg_rte_horaire
+    description: "Données horaires de production et de consommation électrique régionales (RTE) pour les Pays de la Loire."
+    columns:
+      - name: timestamp_heure
+        description: "Clé primaire temporelle (date et heure de la mesure brute RTE)."
+        tests:
+          - not_null
+          - unique
+      - name: consommation_mw
+        description: "Consommation électrique totale de la région en MW."
+        tests:
+          - not_null
+      - name: prod_thermique_mw
+        description: "Production d'électricité d'origine thermique fossile (gaz/charbon/fioul) en MW."
+        tests:
+          - not_null
+      - name: prod_eolienne_mw
+        description: "Production d'électricité d'origine éolienne (terrestre et en mer) en MW."
+        tests:
+          - not_null
+      - name: prod_solaire_mw
+        description: "Production d'électricité d'origine solaire photovoltaïque en MW."
+        tests:
+          - not_null
+      - name: prod_nucleaire_mw
+        description: "Production d'électricité d'origine nucléaire en MW (généralement à 0 en Pays de la Loire)."
+        tests:
+          - not_null
+      - name: prod_hydraulique_mw
+        description: "Production d'électricité d'origine hydraulique en MW."
+        tests:
+          - not_null
+      - name: prod_bioenergies_mw
+        description: "Production d'électricité issue des bioénergies en MW."
+        tests:
+          - not_null
+
+  - name: stg_feries
+    description: "Référentiel des jours fériés en France métropolitaine."
+    columns:
+      - name: date_jour
+        description: "Clé primaire : la date du jour férié (YYYY-MM-DD)."
+        tests:
+          - not_null
+          - unique
+
+      - name: nom_ferie
+        description: "Libellé officiel du jour férié (ex: Lundi de Pentecôte, Fête Nationale)."
+        tests:
+          - not_null
