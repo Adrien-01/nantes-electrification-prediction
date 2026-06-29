@@ -1,0 +1,76 @@
+#%%
+
+import pandas as pd
+import urllib.parse
+from pathlib import Path
+from datetime import datetime
+
+# Configuration
+dataset_id = "eco2mix-metropoles-tr"
+metropole_exacte = "Nantes Métropole"
+date_actuelle_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+# 1. Filtre : Nantes entre 2022 et fin 2025
+where_clause = (
+    f'libelle_metropole = "{metropole_exacte}" '
+    f'AND date_heure >= "2022-01-01T00:00:00Z" '
+    f'AND date_heure <= "{date_actuelle_iso}"'
+)
+
+where_encoded = urllib.parse.quote(where_clause)
+url_export = f"https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/{dataset_id}/exports/csv?where={where_encoded}&limit=-1&delimiter=%3B"
+
+print("1. Téléchargement des données brutes (pas 15 min)...")
+try:
+    df = pd.read_csv(url_export, sep=";")
+
+    # Conversion en datetime et tri
+    df["date_heure"] = pd.to_datetime(df["date_heure"])
+    df = df.sort_values(by="date_heure")
+
+    print("2. Passage au pas horaire (Rééchantillonnage à 1h)...")
+    # On place la date en index pour utiliser resample
+    df.set_index("date_heure", inplace=True)
+
+    # '1h' regroupe les données par heure. On prend la moyenne de la puissance (MW)
+    df_horaire = df.resample("1h").agg({
+        "libelle_metropole": "first",
+        "consommation": "mean"
+    }).dropna().reset_index()
+
+    print("3. Filtrage des périodes estivales (Juin à Septembre)...")
+    df_ete_horaire = df_horaire[df_horaire["date_heure"].dt.month.isin([6, 7, 8, 9])].copy()
+
+    # 4. Génération du fichier CSV pour ton dbt
+    #Récupérer le dossier du script actuel
+    chemin_actuel = Path(__file__).resolve()
+
+    #Trouver la racine du projet en cherchant le dossier nommé 'nantes-electrification-prediction'
+    racine_projet = None
+    for parent in chemin_actuel.parents:
+        if parent.name == "nantes-electrification-prediction":
+            racine_projet = parent
+            break
+
+    #Sécurité au cas où le script est exécuté en dehors du projet
+    if racine_projet is None:
+        raise FileNotFoundError("Impossible de trouver le dossier racine 'nantes-electrification-prediction'")
+
+    #Construire le chemin vers le dossier seeds en partant de la racine
+    dossier_seeds = racine_projet / "dbt_nantes_electricity" / "seeds"
+
+    #Assurer que le dossier existe
+    dossier_seeds.mkdir(parents=True, exist_ok=True)
+
+    #Définir le chemin complet du fichier et sauvegarder
+    nom_fichier = dossier_seeds / "stg_nantes_consommation_horaire.csv"
+    df_ete_horaire.to_csv(nom_fichier, index=False, sep=",", encoding="utf-8")
+
+    print(f"\n-> Succès ! Fichier sauvegardé : {nom_fichier}")
+    print(f"Nombre de lignes pour les étés (pas horaire) : {len(df_ete_horaire)}")
+    print(df_ete_horaire[["date_heure", "libelle_metropole", "consommation"]].head())
+
+except Exception as e:
+    print(f"\nErreur : {e}")
+
+# %%

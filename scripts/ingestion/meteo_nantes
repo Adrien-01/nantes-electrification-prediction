@@ -1,0 +1,74 @@
+# %%
+
+import pandas as pd
+import requests
+from pathlib import Path
+from datetime import datetime
+
+# 1. Configuration des paramètres pour Nantes (Station Nantes-Atlantique)
+latitude = 47.16
+longitude = -1.61
+start_date = "2022-01-01"
+date_actuelle_iso = datetime.utcnow().strftime("%Y-%m-%d")
+
+# URL de l'API Archive d'Open-Meteo
+url_meteo = (
+    f"https://archive-api.open-meteo.com/v1/archive?"
+    f"latitude={latitude}&longitude={longitude}&"
+    f"start_date={start_date}&end_date={date_actuelle_iso}&"
+    f"hourly=temperature_2m&timezone=Europe%2FParis"
+)
+
+print("1. Récupération des données météo historiques depuis Open-Meteo...")
+try:
+    response = requests.get(url_meteo)
+    response.raise_for_status()  # Lève une erreur si l'API a un problème (ex: 404, 500)
+    data = response.json()
+
+    # 2. Extraction des données horaires
+    donnees_horaires = data["hourly"]
+    df_meteo = pd.DataFrame({
+        "date_heure": donnees_horaires["time"],
+        "temperature_c": donnees_horaires["temperature_2m"]
+    })
+
+    # Conversion de la colonne temporelle
+    df_meteo["date_heure"] = pd.to_datetime(df_meteo["date_heure"])
+
+    print("3. Filtrage des périodes estivales (Juin à Septembre)...")
+    # On isole uniquement les mois d'été (6, 7, 8, 9)
+    df_meteo_ete = df_meteo[df_meteo["date_heure"].dt.month.isin([6, 7, 8, 9])].copy()
+
+    # Tri par ordre chronologique
+    df_meteo_ete = df_meteo_ete.sort_values(by="date_heure").reset_index(drop=True)
+
+    print("4. Configuration des dossiers de sauvegarde...")
+    # Récupérer le dossier du script actuel
+    chemin_actuel = Path(__file__).resolve()
+
+    # Trouver la racine du projet en cherchant le dossier nommé 'nantes-electrification-prediction'
+    racine_projet = None
+    for parent in chemin_actuel.parents:
+        if parent.name == "nantes-electrification-prediction":
+            racine_projet = parent
+            break
+
+    # Sécurité au cas où le script est exécuté en dehors du projet
+    if racine_projet is None:
+        raise FileNotFoundError("Impossible de trouver le dossier racine 'nantes-electrification-prediction'")
+
+    # Construire le chemin vers le dossier seeds en partant de la racine
+    dossier_seeds = racine_projet / "dbt_nantes_electricity" / "seeds"
+
+    # Assurer que le dossier existe
+    dossier_seeds.mkdir(parents=True, exist_ok=True)
+
+    # 5. Génération et écriture du fichier CSV pour ton dbt
+    nom_fichier = dossier_seeds / "stg_nantes_meteo_horaire.csv"
+
+    print(f"5. Sauvegarde des données dans : {nom_fichier}")
+    df_meteo_ete.to_csv(nom_fichier, index=False, sep=",", encoding="utf-8")
+    print("🎉 Exportation réussie avec succès !")
+
+except Exception as e:
+    print(f"\n❌ Erreur lors de la récupération ou sauvegarde météo : {e}")

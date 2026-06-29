@@ -45,3 +45,11 @@ models:
     marts:
       +materialized: table
       +schema: mart
+
+seeds:
+  dbt_nantes_electricity:
+    +config:
+      # Ces options disent à DuckDB : "Si des colonnes manquent sur certaines lignes, mets du NULL et avance"
+      external_options:
+        null_padding: true
+        ignore_errors: true
